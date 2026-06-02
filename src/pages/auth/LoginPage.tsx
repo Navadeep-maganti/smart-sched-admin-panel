@@ -1,15 +1,16 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { login } from '../../api/auth';
-import { Button } from '../../components/ui/Button';
-import { ShieldCheck, Mail, Lock, ArrowRight } from 'lucide-react';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { login } from "../../api/auth";
+import { Button } from "../../components/ui/Button";
+import { ShieldCheck, Mail, Lock, ArrowRight, UserCog } from "lucide-react";
 
 const schema = z.object({
-  email: z.string().email('Enter a valid email'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  email: z.string().email("Enter a valid email"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  role: z.enum(["ADMIN", "HOD"], { required_error: "Select a role" }),
   remember: z.boolean().optional(),
 });
 
@@ -24,7 +25,7 @@ export const LoginPage = () => {
     formState: { errors, isSubmitting },
   } = useForm<LoginForm>({
     resolver: zodResolver(schema),
-    defaultValues: { remember: true },
+    defaultValues: { role: "ADMIN", remember: true },
   });
 
   const onSubmit = async (values: LoginForm) => {
@@ -34,29 +35,29 @@ export const LoginPage = () => {
       const access = result.access;
       const refresh = result.refresh;
       if (!access) {
-        throw new Error('Login succeeded but no token was returned.');
+        throw new Error("Login succeeded but no token was returned.");
       }
-      localStorage.setItem('access', access);
+      localStorage.setItem("access", access);
       if (refresh) {
-        localStorage.setItem('refresh', refresh);
+        localStorage.setItem("refresh", refresh);
       }
 
       const profile = result.user ?? result.profile;
       if (profile) {
-        localStorage.setItem('user', JSON.stringify(profile));
+        localStorage.setItem("user", JSON.stringify(profile));
       }
-      navigate('/');
+      navigate("/");
     } catch (err: any) {
       const backendMessage =
         err?.response?.data?.detail ||
         err?.response?.data?.message ||
         err?.response?.data?.error ||
         err?.message;
-      const status = err?.response?.status ? ` (${err.response.status})` : '';
+      const status = err?.response?.status ? ` (${err.response.status})` : "";
       const message = backendMessage
         ? `${backendMessage}${status}`
-        : 'Unable to sign in. Please check credentials.';
-      console.error('Login error:', err?.response?.data ?? err?.message);
+        : "Unable to sign in. Please check credentials.";
+      console.error("Login error:", err?.response?.data ?? err?.message);
       setError(message);
     }
   };
@@ -69,40 +70,81 @@ export const LoginPage = () => {
             <ShieldCheck size={28} />
           </div>
           <div>
-            <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Admin Access</p>
-            <h1 className="text-3xl font-semibold text-white">Sign in to Smart Scheduler</h1>
+            <p className="text-sm uppercase tracking-[0.24em] text-slate-500">
+              Admin Access
+            </p>
+            <h1 className="text-3xl font-semibold text-white">
+              Sign in to Smart Scheduler
+            </h1>
           </div>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-300">Email</label>
+            <label className="mb-2 block text-sm font-medium text-slate-300">
+              Email
+            </label>
             <div className="flex items-center gap-3 rounded-3xl border border-slate-800 bg-slate-950 px-4 py-3">
               <Mail size={18} className="text-slate-500" />
               <input
                 type="email"
                 autoComplete="email"
-                {...register('email')}
+                {...register("email")}
                 className="w-full bg-transparent text-slate-100 outline-none"
                 placeholder="admin@university.edu"
               />
             </div>
-            {errors.email && <p className="mt-2 text-sm text-rose-400">{errors.email.message}</p>}
+            {errors.email && (
+              <p className="mt-2 text-sm text-rose-400">
+                {errors.email.message}
+              </p>
+            )}
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-300">Password</label>
+            <label className="mb-2 block text-sm font-medium text-slate-300">
+              Password
+            </label>
             <div className="flex items-center gap-3 rounded-3xl border border-slate-800 bg-slate-950 px-4 py-3">
               <Lock size={18} className="text-slate-500" />
               <input
                 type="password"
                 autoComplete="current-password"
-                {...register('password')}
+                {...register("password")}
                 className="w-full bg-transparent text-slate-100 outline-none"
                 placeholder="••••••••"
               />
             </div>
-            {errors.password && <p className="mt-2 text-sm text-rose-400">{errors.password.message}</p>}
+            {errors.password && (
+              <p className="mt-2 text-sm text-rose-400">
+                {errors.password.message}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-300">
+              Role
+            </label>
+            <div className="flex items-center gap-3 rounded-3xl border border-slate-800 bg-slate-950 px-4 py-3">
+              <UserCog size={18} className="text-slate-500" />
+              <select
+                {...register("role")}
+                className="w-full bg-transparent text-slate-100 outline-none"
+              >
+                <option value="ADMIN" className="bg-slate-950 text-slate-100">
+                  Admin
+                </option>
+                <option value="HOD" className="bg-slate-950 text-slate-100">
+                  HOD
+                </option>
+              </select>
+            </div>
+            {errors.role && (
+              <p className="mt-2 text-sm text-rose-400">
+                {errors.role.message}
+              </p>
+            )}
           </div>
 
           {/* <div className="flex items-center justify-between gap-4 text-sm text-slate-400">
@@ -113,10 +155,18 @@ export const LoginPage = () => {
             <span className="font-medium text-brand-500">Forgot password?</span>
           </div> */}
 
-          {error && <div className="rounded-3xl bg-rose-950 px-4 py-3 text-sm text-rose-300">{error}</div>}
+          {error && (
+            <div className="rounded-3xl bg-rose-950 px-4 py-3 text-sm text-rose-300">
+              {error}
+            </div>
+          )}
 
-          <Button type="submit" disabled={isSubmitting} className="w-full justify-between">
-            <span>{isSubmitting ? 'Signing in...' : 'Sign In'}</span>
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full justify-between"
+          >
+            <span>{isSubmitting ? "Signing in..." : "Sign In"}</span>
             <ArrowRight size={18} />
           </Button>
         </form>
