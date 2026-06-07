@@ -5,13 +5,52 @@ import { DataTable } from "../../components/ui/DataTable";
 import { LoadingShell } from "../../components/ui/LoadingShell";
 import { useTimetables } from "../../hooks/useResources";
 import type { RawTimetable } from "../../utils/timetable";
+import { useSections } from "../../hooks/useResources";
+import { useState } from "react";
+type Section = {
+  section_id: number | string;
+  section_name: string;
+  department_name: string;
+  year_number: number;
+};
+
+type EnrichedTimetable = RawTimetable & {
+  department_name?: string;
+  year_number?: number;
+  generated_by_email?: string;
+};
+
+const enrichTimetables = (
+  timetables: RawTimetable[],
+  sections: Section[],
+): EnrichedTimetable[] => {
+  const sectionMap = new Map(
+    sections.map((section) => [section.section_id, section])
+  );
+  return timetables.map((timetable) => {
+    const section =
+      timetable.section === undefined ? undefined : sectionMap.get(timetable.section);
+    return {
+      ...timetable,
+      department_name: section?.department_name,
+      year_number: section?.year_number,
+      section_name: section?.section_name || timetable.section_name,
+      term_label: timetable.term_label,
+    };
+  });
+};
 
 export const TimetablesPage = () => {
+  const [search_field, setSearchField] = useState("");
   const query = useTimetables();
   const data = (query.data ?? []) as RawTimetable[];
-  // "timetable_id":1,"section":5,"section_name":"A","term":2,"term_label":"2026-2027 Even","version_number":1,"status":"GENERATED","generated_at":"2026-06-01T20:06:23.165654+05:30","generated_by":3,"generated_by_email":"magantinavadeep@gmail.com","published_at":null}
-  const columns: ColumnDef<RawTimetable>[] = [
+  const sectionsQuery = useSections();
+  const sections = sectionsQuery.data ?? [];
+  const enrichedData = enrichTimetables(data, sections);
+  const columns: ColumnDef<EnrichedTimetable>[] = [
     { header: "ID", accessorKey: "timetable_id" },
+    {header:"Department", accessorKey: "department_name"},
+    {header: "Year", accessorKey: "year_number"},
     { header: "Section", accessorKey: "section_name" },
     { header: "Term", accessorKey: "term_label" },
     { header: "Version", accessorKey: "version_number" },
@@ -33,9 +72,9 @@ export const TimetablesPage = () => {
           <button className="rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-brand-400 hover:bg-slate-900">
             Publish
           </button>
-          <button className="rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-400 hover:bg-slate-900">
+          {/* <button className="rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-400 hover:bg-slate-900">
             <Archive size={16} />
-          </button>
+          </button> */}
         </div>
       ),
     },
@@ -53,18 +92,33 @@ export const TimetablesPage = () => {
             </p>
             <h2 className="text-3xl font-semibold text-white">Timetables</h2>
           </div>
+          {/* sort options */}
+          {/* <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <select className="w-full rounded-3xl border border-slate-800 bg-slate-950 py-3 px-4 text-slate-100 outline-none focus:border-brand-500">
+              <option value="">Sort by</option>
+              <option value="Department">Department</option>
+              <option value="Year">Year</option>
+              <option value="Section">Section</option>
+              <option value=""></option>
+            </select>
+          </div> */}
           <div className="relative">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <input
+              onChange={(e)=>{setSearchField(e.target.value);}}
               type="search"
-              placeholder="Search timetable versions"
+              placeholder="Search timetable by department, year, section..."
               className="w-full rounded-3xl border border-slate-800 bg-slate-950 py-3 pl-12 pr-4 text-slate-100 outline-none focus:border-brand-500"
             />
           </div>
         </div>
         <DataTable
           columns={columns}
-          data={data}
+          data={enrichedData.filter((timetable) =>
+            timetable.department_name?.toLowerCase().includes(search_field.toLowerCase()) ||
+            timetable.year_number?.toString().includes(search_field) ||
+            timetable.section_name?.toLowerCase().includes(search_field.toLowerCase())
+          )}
           emptyText="No timetables available."
         />
       </div>

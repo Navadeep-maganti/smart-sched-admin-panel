@@ -1,3 +1,5 @@
+import { useSections } from "../hooks/useResources";
+
 export type RawTimetable = {
   timetable_id: number;
   section?: number;
@@ -64,16 +66,61 @@ const formatTime = (value?: string) => {
   return hour && minute ? `${hour}:${minute}` : value;
 };
 
+// Department_name Year_number Section - Term - Version
 export const getTimetableTitle = (timetable: RawTimetable) => {
-  const section = timetable.section_name
-    ? `Section ${timetable.section_name}`
+
+
+  type Section = {
+    section_id: number | string;
+    section_name: string;
+    department_name: string;
+    year_number: number;
+  };
+
+  type EnrichedTimetable = RawTimetable & {
+    department_name?: string;
+    year_number?: number;
+    generated_by_email?: string;
+  };
+
+  const enrichTimetables = (
+    timetables: RawTimetable[],
+    sections: Section[],
+  ): EnrichedTimetable[] => {
+    const sectionMap = new Map(
+      sections.map((section) => [section.section_id, section])
+    );
+    return timetables.map((timetable) => {
+      const section =
+        timetable.section === undefined ? undefined : sectionMap.get(timetable.section);
+      return {
+        ...timetable,
+        department_name: section?.department_name,
+        year_number: section?.year_number,
+        section_name: section?.section_name || timetable.section_name,
+        term_label: timetable.term_label,
+      };
+    });
+  };
+  const sectionsQuery = useSections();
+  const sections = sectionsQuery.data ?? [];
+
+  const enrichedTimetables = enrichTimetables([timetable], sections);
+  const enrichedTimetable = enrichedTimetables[0];
+
+
+
+  const department = enrichedTimetable.department_name ?? "Department";
+  const year = enrichedTimetable.year_number?.toString() ?? "Year";
+  const section = enrichedTimetable.section_name
+    ? `Section ${enrichedTimetable.section_name}`
     : "Timetable";
-  const term = timetable.term_label ? ` - ${timetable.term_label}` : "";
+  const term = enrichedTimetable.term_label ? ` - ${enrichedTimetable.term_label}` : "";
   const version =
-    timetable.version_number !== undefined
-      ? ` - Version ${timetable.version_number}`
+    enrichedTimetable.version_number !== undefined
+      ? ` - Version ${enrichedTimetable.version_number}`
       : "";
-  return `${section}${term}${version}`;
+  return `${department}, Year ${year}, ${section}${term}${version}`;
 };
 
 export const buildDayLabels = (
